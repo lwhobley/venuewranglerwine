@@ -1,0 +1,6 @@
+sku,producer,cuvee,wine_type,vintage,bottle_ml,country,region,unit_cost
+CLB-001,House of Linden,Les Cotes,white,2022,750,France,Burgundy,28.5000
+CLB-002,House of Linden,Les Cotes,red,2019,750,France,Burgundy,42.0000
+CLB-003,North Slope Cellars,Estate Brut,sparkling,NV,750,United States,Willamette Valley,22.7500
+CLB-004,Quarry & Vine,Reserve Magnum,red,2016,1500,Italy,Tuscany,96.0000
+CLB-005,Atelier Solaire,Skin Contact,orange,2021,750,Austria,Styria,31.2500
