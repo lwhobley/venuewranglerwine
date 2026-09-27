@@ -87,18 +87,37 @@ class CountDeskController extends AsyncNotifier<CountDesk> {
     required String sku,
     required String quantity,
     required String reason,
+    String? lotId,
   }) async {
     final store = await ref.read(countDraftStoreProvider.future);
     final parsed = parseLocationScan(locationCode);
     if (parsed == null) {
       throw const ValidationFailure('Enter a location code, or the code from its label.');
     }
+    var lotCount = 1;
+    var chosenLot = lotId;
+    try {
+      final choices = await ref.read(countRepositoryProvider).lotChoices(
+        sessionId: sessionId,
+        locationCode: parsed,
+        sku: sku.trim().toUpperCase(),
+      );
+      lotCount = choices.length;
+      chosenLot ??= choices.length == 1 ? choices.single.lotId : null;
+    } on NetworkFailure {
+      if (chosenLot == null) {
+        throw const ValidationFailure('Connect once and choose the lot before counting this slot offline.');
+      }
+    }
+    final lotError = lotSelectionError(lotCount: lotCount, lotId: chosenLot);
+    if (lotError != null) throw ValidationFailure(lotError);
     await store.save(
       CountDraft(
         clientEntryId: store.newEntryId(),
         sessionId: sessionId,
         locationCode: parsed,
         sku: sku.trim().toUpperCase(),
+        lotId: chosenLot,
         quantity: quantity.trim(),
         reason: reason.trim(),
         syncStatus: 'pending',
@@ -120,6 +139,7 @@ class CountDeskController extends AsyncNotifier<CountDesk> {
           sku: draft.sku,
           quantity: draft.quantity,
           reason: draft.reason,
+          lotId: draft.lotId,
         );
         await store.save(
           draft.copyWith(

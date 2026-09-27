@@ -14,6 +14,7 @@ If two counters enter different quantities for the same slot, the second entry i
 
 - Start a full, partial, cycle, spot, opening, closing, event-prep, or audit count, blind or expected.
 - Enter a location code, or paste the `vw:loc:` payload a slot label would carry.
+- If the slot holds more than one lot of that SKU, choose the lot. The count posts only to that lot. A pooled older count cannot be approved.
 - Search a wine by SKU or name, set a bottle quantity, and save it on the device.
 - Sync when the connection returns. The screen shows the last sync time and unsynced entries.
 - Submit the count.

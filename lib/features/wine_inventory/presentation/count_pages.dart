@@ -136,6 +136,8 @@ class _CountModePageState extends ConsumerState<CountModePage> {
   final _sku = TextEditingController();
   final _reason = TextEditingController();
   var _quantity = 0;
+  String? _lotId;
+  List<CountLotChoice> _lots = const [];
   String? _error;
   var _busy = false;
 
@@ -204,6 +206,40 @@ class _CountModePageState extends ConsumerState<CountModePage> {
                 onPressed: () => setState(() => _sku.text = sku),
                 child: Text(sku),
               ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: _busy
+                  ? null
+                  : () => _run(() async {
+                      final lots = await ref.read(countRepositoryProvider).lotChoices(
+                        sessionId: widget.sessionId,
+                        locationCode: _location.text,
+                        sku: _sku.text,
+                      );
+                      setState(() {
+                        _lots = lots;
+                        _lotId = lots.length == 1 ? lots.single.lotId : null;
+                      });
+                    }),
+              child: const Text('Find lots'),
+            ),
+            if (_lots.length > 1) ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _lots.any((lot) => lot.lotId == _lotId) ? _lotId : null,
+                decoration: const InputDecoration(labelText: 'Lot'),
+                items: [
+                  for (final lot in _lots)
+                    DropdownMenuItem(
+                      value: lot.lotId,
+                      child: Text(
+                        lot.expectedQuantity == null ? lot.label : '${lot.label} · book ${lot.expectedQuantity}',
+                      ),
+                    ),
+                ],
+                onChanged: (value) => setState(() => _lotId = value),
+              ),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -231,6 +267,7 @@ class _CountModePageState extends ConsumerState<CountModePage> {
                         sku: _sku.text,
                         quantity: '$_quantity',
                         reason: _reason.text,
+                        lotId: _lotId,
                       );
                       await ref.read(countDeskProvider(widget.sessionId).notifier).sync();
                     }),

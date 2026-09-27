@@ -46,6 +46,14 @@ class CountSheetLine {
   final String status;
 }
 
+class CountLotChoice {
+  const CountLotChoice({required this.lotId, required this.label, this.expectedQuantity});
+
+  final String lotId;
+  final String label;
+  final String? expectedQuantity;
+}
+
 class CountEntryResult {
   const CountEntryResult({required this.status, required this.lineId});
 
@@ -71,6 +79,12 @@ abstract interface class CountRepository {
     required String sku,
     required String quantity,
     required String reason,
+    String? lotId,
+  });
+  Future<List<CountLotChoice>> lotChoices({
+    required String sessionId,
+    required String locationCode,
+    required String sku,
   });
   Future<void> submit(String sessionId);
   Future<int> approve(String sessionId);

@@ -141,6 +141,7 @@ AppFailure _fromToken(String text) {
     'plan_required': PermissionFailure('Reports need an active or trial plan.'),
     'self_approval_denied': PermissionFailure('Someone else must approve a count you started or entered.'),
     'lot_required': ValidationFailure('This slot has more than one lot. Count each lot separately.'),
+    'count_needs_recount': ValidationFailure('This count mixed lots. Start a new count and enter each lot.'),
     'count_out_of_scope': ValidationFailure('That slot is outside this count.'),
   };
   for (final entry in messages.entries) {

@@ -57,6 +57,7 @@ class SupabaseCountRepository implements CountRepository {
     required String sku,
     required String quantity,
     required String reason,
+    String? lotId,
   }) {
     return _guard(() async {
       final raw = await _client.rpc(
@@ -68,6 +69,7 @@ class SupabaseCountRepository implements CountRepository {
           'p_sku': sku,
           'p_quantity': quantity,
           'p_reason': reason,
+          'p_lot_id': lotId,
         },
       );
       final map = Map<String, dynamic>.from(raw as Map);
@@ -75,6 +77,31 @@ class SupabaseCountRepository implements CountRepository {
         status: map['status'] as String,
         lineId: map['line_id'].toString(),
       );
+    });
+  }
+
+  @override
+  Future<List<CountLotChoice>> lotChoices({
+    required String sessionId,
+    required String locationCode,
+    required String sku,
+  }) {
+    return _guard(() async {
+      final raw = await _client.rpc(
+        'count_lot_choices',
+        params: {
+          'p_session_id': sessionId,
+          'p_location_code': locationCode,
+          'p_sku': sku,
+        },
+      );
+      return _list(raw).map((row) {
+        return CountLotChoice(
+          lotId: row['lot_id'] as String,
+          label: row['label'] as String? ?? 'Lot',
+          expectedQuantity: _qty(row['expected_quantity']),
+        );
+      }).toList();
     });
   }
 

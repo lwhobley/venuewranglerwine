@@ -49,6 +49,13 @@ String? visibleExpected({
   return null;
 }
 
+String? lotSelectionError({required int lotCount, required String? lotId}) {
+  if (lotCount > 1 && (lotId == null || lotId.isEmpty)) {
+    return 'Choose the lot before saving this count.';
+  }
+  return null;
+}
+
 String? parseLocationScan(String raw) {
   var text = raw.trim();
   if (text.isEmpty) return null;
@@ -67,6 +74,7 @@ class CountDraft {
     required this.sessionId,
     required this.locationCode,
     required this.sku,
+    this.lotId,
     required this.quantity,
     required this.reason,
     required this.syncStatus,
@@ -77,6 +85,7 @@ class CountDraft {
   final String sessionId;
   final String locationCode;
   final String sku;
+  final String? lotId;
   final String quantity;
   final String reason;
   final String syncStatus;
@@ -88,6 +97,7 @@ class CountDraft {
       sessionId: sessionId,
       locationCode: locationCode,
       sku: sku,
+      lotId: lotId,
       quantity: quantity,
       reason: reason,
       syncStatus: syncStatus ?? this.syncStatus,
@@ -101,6 +111,7 @@ class CountDraft {
       'sessionId': sessionId,
       'locationCode': locationCode,
       'sku': sku,
+      'lotId': lotId,
       'quantity': quantity,
       'reason': reason,
       'syncStatus': syncStatus,
@@ -114,6 +125,7 @@ class CountDraft {
       sessionId: json['sessionId'] as String,
       locationCode: json['locationCode'] as String,
       sku: json['sku'] as String? ?? '',
+      lotId: json['lotId'] as String?,
       quantity: json['quantity'] as String,
       reason: json['reason'] as String? ?? '',
       syncStatus: json['syncStatus'] as String? ?? 'pending',

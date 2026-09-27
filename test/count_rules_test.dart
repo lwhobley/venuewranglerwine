@@ -36,6 +36,12 @@ void main() {
     );
   });
 
+  test('a multi-lot slot cannot be saved without a lot', () {
+    expect(lotSelectionError(lotCount: 2, lotId: null), contains('lot'));
+    expect(lotSelectionError(lotCount: 2, lotId: 'lot-1'), isNull);
+    expect(lotSelectionError(lotCount: 1, lotId: null), isNull);
+  });
+
   test('a location label payload is the same code a QR would carry', () {
     expect(parseLocationScan('vw:loc:CELLAR-A/RACK-01/SIDE-A/ROW-05/BIN-12'),
       'CELLAR-A/RACK-01/SIDE-A/ROW-05/BIN-12',
