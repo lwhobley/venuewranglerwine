@@ -73,7 +73,13 @@ The EAS submission profile points to the new Apple ID. No cloud build,
 binary upload, review submission or release has been started. Expo project
 linking and installation of the completed signing credentials remain necessary.
 
-The certificate download could not be collected through browser automation.
-The issued certificate has not yet been matched to the local private key or
-exported as a PKCS#12 file. Download/export and profile installation remain
-pending; the Apple portal record alone does not establish usable local signing.
+The September 29 certificate was subsequently located in Downloads and matched
+to the September 24 `distribution.key`. It was exported as
+`VenueWranglerWine-AppleDistribution-20260929.p12`, protected with the saved
+signing password, and its password and certificate were verified locally.
+The separately generated September 29 private key does not match this certificate.
+The .p12 and password remain outside Git. A matching App Store provisioning
+profile and installation in the selected build service remain necessary.
+
+For the Codemagic workflow and exact variable groups, see
+[Codemagic iOS builds](codemagic-ios.md).

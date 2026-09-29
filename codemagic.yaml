@@ -1,0 +1,109 @@
+# Upload the distribution .p12 and its matching App Store profile to
+# Codemagic Team settings > Code signing identities before running.
+# See docs/codemagic-ios.md for variable groups and first-build setup.
+workflows:
+  ios-release: &ios_release
+    name: Venue Wrangler Wine - signed iOS IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 120
+    environment: &ios_environment
+      flutter: 3.47.5
+      xcode: latest
+      cocoapods: default
+      groups:
+        - app_config
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: venuewranglerwine
+      vars:
+        BUNDLE_ID: venuewranglerwine
+        APPLE_TEAM_ID: 8MTB6AL22R
+        APP_STORE_APPLE_ID: "6817233267"
+    cache:
+      cache_paths:
+        - ~/.pub-cache
+        - ~/Library/Caches/CocoaPods
+    scripts:
+      - name: Prepare app configuration and build number
+        script: |
+          set -euo pipefail
+          python3 tool/prepare_codemagic_ios.py
+      - name: Install Flutter dependencies and generate Dart code
+        script: |
+          set -euo pipefail
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+      - name: Analyze and test
+        script: |
+          set -euo pipefail
+          flutter analyze
+          flutter test
+      - name: Generate iOS configuration and install CocoaPods
+        script: |
+          set -euo pipefail
+          flutter build ios --release --config-only --no-codesign --no-pub \
+            --build-number="$VW_IOS_BUILD_NUMBER" \
+            --dart-define-from-file=build/codemagic/flutter-defines.json
+          cd ios
+          pod install
+      - name: Apply uploaded signing identities
+        script: |
+          set -euo pipefail
+          xcode-project use-profiles
+          test -s "$HOME/export_options.plist"
+      - name: Archive and export signed IPA
+        script: |
+          set -euo pipefail
+          flutter build ipa --release --no-pub \
+            --build-number="$VW_IOS_BUILD_NUMBER" \
+            --dart-define-from-file=build/codemagic/flutter-defines.json \
+            --export-options-plist="$HOME/export_options.plist"
+      - name: Verify app identity and signature
+        script: |
+          set -euo pipefail
+          app="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app"
+          actual_bundle=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$app/Info.plist")
+          actual_build=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")
+          test "$actual_bundle" = "$BUNDLE_ID"
+          test "$actual_build" = "$VW_IOS_BUILD_NUMBER"
+          codesign --verify --deep --strict "$app"
+          codesign -dv --verbose=4 "$app" 2>&1 | grep -F "TeamIdentifier=$APPLE_TEAM_ID"
+          python3 - <<'PY'
+          import os, plistlib, zipfile
+          from pathlib import Path
+          ipas = list(Path('build/ios/ipa').glob('*.ipa'))
+          if len(ipas) != 1:
+              raise SystemExit('Expected exactly one exported IPA')
+          with zipfile.ZipFile(ipas[0]) as archive:
+              infos = [name for name in archive.namelist()
+                       if name.startswith('Payload/') and name.endswith('.app/Info.plist')
+                       and name.count('/') == 2]
+              if len(infos) != 1:
+                  raise SystemExit('Expected one main application in the IPA')
+              info = plistlib.loads(archive.read(infos[0]))
+          if info['CFBundleIdentifier'] != os.environ['BUNDLE_ID']:
+              raise SystemExit('Exported IPA bundle identifier mismatch')
+          if str(info['CFBundleVersion']) != os.environ['VW_IOS_BUILD_NUMBER']:
+              raise SystemExit('Exported IPA build number mismatch')
+          print('Verified exported IPA:', info['CFBundleIdentifier'], info['CFBundleVersion'])
+          PY
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/ios/archive/Runner.xcarchive/dSYMs/*.dSYM
+      - /tmp/xcodebuild_logs/*.log
+
+  ios-testflight:
+    <<: *ios_release
+    name: Venue Wrangler Wine - iOS build and TestFlight upload
+    environment:
+      <<: *ios_environment
+      groups:
+        - app_config
+        - appstore_credentials
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
