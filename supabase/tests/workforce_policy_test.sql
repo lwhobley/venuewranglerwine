@@ -2,7 +2,7 @@ set local role authenticated;
 do $test$
 declare o uuid:=current_setting('workforce_test.org')::uuid; v uuid:=current_setting('workforce_test.venue')::uuid;
  staff uuid:=current_setting('workforce_test.staff')::uuid; h public.shifts; a jsonb; cmd uuid; area uuid;
- d uuid; roleid uuid; shiftid uuid; failed boolean; cert uuid;
+ d uuid; roleid uuid; shiftid uuid; failed boolean; cert uuid; cfg public.workforce_settings;
 begin
  select * into h from public.shifts where id=current_setting('workforce_test.shift')::uuid;
  a:=public.workforce_command(o,v,gen_random_uuid(),'save','{"table":"venue_areas","data":{"name":"North outlet","code":"NORTH"}}');area:=(a->>'id')::uuid;
@@ -18,7 +18,12 @@ begin
  perform public.workforce_command(o,v,gen_random_uuid(),'save',jsonb_build_object('table','shift_break_rules','confirm_published',true,'data',jsonb_build_object('shift_id',h.id,'minimum_minutes',30,'paid',false,'required',true)));
  perform public.workforce_command(o,v,gen_random_uuid(),'save','{"table":"labor_targets","data":{"starts_on":"2027-01-04","ends_on":"2027-01-11","target_minutes":480,"target_cost":"123.4567","target_percent":"24.0000"}}');
  perform public.workforce_command(o,v,gen_random_uuid(),'save','{"table":"labor_forecasts","data":{"service_date":"2027-01-05","forecast_sales":"1000.1234","forecast_covers":50}}');
- perform public.workforce_command(o,v,gen_random_uuid(),'save','{"table":"workforce_settings","data":{"reminder_minutes":30,"overtime_multiplier":"1.5000"}}');
+ select * into cfg from public.workforce_settings where organization_id=o and venue_id=v and deleted_at is null;
+ if cfg.id is null then raise exception 'attendance fixture did not create workforce settings'; end if;
+ perform public.workforce_command(o,v,gen_random_uuid(),'save',jsonb_build_object('table','workforce_settings',
+ 'id',cfg.id,'revision',cfg.revision,'data','{"reminder_minutes":30,"overtime_multiplier":"1.5000"}'::jsonb));
+ if not exists(select 1 from public.workforce_settings where id=cfg.id and reminder_minutes=30 and overtime_multiplier=1.5)
+ then raise exception 'workforce settings update failed'; end if;
  perform public.workforce_command(o,v,gen_random_uuid(),'message','{"body":"Schedule verification message"}');
  perform public.workforce_command(o,v,gen_random_uuid(),'read_notification',jsonb_build_object('id',(select id from public.notifications where recipient_id=auth.uid() limit 1)));
  perform public.workforce_command(o,v,gen_random_uuid(),'register_push','{"token":"workforce-fixture-token-not-real","platform":"android"}');
