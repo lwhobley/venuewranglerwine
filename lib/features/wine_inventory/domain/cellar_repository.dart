@@ -6,12 +6,14 @@ class CellarRoom {
     required this.name,
     required this.code,
     required this.kind,
+    this.parentId,
   });
 
   final String id;
   final String name;
   final String code;
   final String kind;
+  final String? parentId;
 }
 
 class RackTemplate {
@@ -71,6 +73,7 @@ class WineRecord {
     required this.wineType,
     required this.bottleMl,
     this.vintage,
+    this.catalogName,
   });
 
   final String itemId;
@@ -80,8 +83,9 @@ class WineRecord {
   final String wineType;
   final int bottleMl;
   final int? vintage;
+  final String? catalogName;
 
-  String get label => vintage == null ? '$producer $cuvee NV' : '$producer $cuvee $vintage';
+  String get label => catalogName ?? (vintage == null ? '$producer $cuvee NV' : '$producer $cuvee $vintage');
 }
 
 class VendorRecord {

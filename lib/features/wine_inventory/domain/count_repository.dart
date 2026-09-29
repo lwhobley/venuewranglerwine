@@ -31,6 +31,7 @@ class CountSheetLine {
     required this.reason,
     required this.mode,
     required this.status,
+    this.lotId,
   });
 
   final String lineId;
@@ -44,6 +45,7 @@ class CountSheetLine {
   final String reason;
   final String mode;
   final String status;
+  final String? lotId;
 }
 
 class CountLotChoice {

@@ -13,16 +13,36 @@ class SupabaseTenantRepository implements TenantRepository {
   @override
   Future<TenantSession> loadSession(String userId) {
     return _guard(() async {
-      final ownRows = await _client
-          .from('memberships')
-          .select('organization_id')
-          .eq('user_id', userId)
-          .eq('status', 'active');
-      final orgIds = (ownRows as List)
-          .map((row) => Map<String, dynamic>.from(row as Map)['organization_id'] as String)
-          .toSet()
-          .toList();
-      if (orgIds.isEmpty) return TenantSession.empty();
+      final isPlatformAdmin = await _client.rpc('is_platform_admin') == true;
+      final List<String> orgIds;
+      if (isPlatformAdmin) {
+        final rows = await _client.from('organizations').select('id');
+        orgIds = _list(rows).map((row) => row['id'] as String).toList();
+      } else {
+        final ownRows = await _client
+            .from('memberships')
+            .select('organization_id')
+            .eq('user_id', userId)
+            .eq('status', 'active');
+        orgIds = _list(ownRows)
+            .map((row) => row['organization_id'] as String)
+            .toSet()
+            .toList();
+      }
+      if (orgIds.isEmpty) {
+        return isPlatformAdmin
+            ? TenantSession(
+                userId: userId,
+                memberships: const [],
+                organizations: const [],
+                venues: const [],
+                invites: const [],
+                joinRequests: const [],
+                auditEvents: const [],
+                isPlatformAdmin: true,
+              )
+            : TenantSession.empty();
+      }
 
       final membershipRows = await _client
           .from('memberships')
@@ -71,11 +91,16 @@ class SupabaseTenantRepository implements TenantRepository {
       return TenantSession(
         userId: userId,
         memberships: _list(membershipRows).map(_membership).toList(),
-        organizations: _list(organizationRows).map(Organization.fromJson).toList(),
+        organizations: _list(organizationRows)
+            .map(Organization.fromJson)
+            .toList(),
         venues: _list(venueRows).map(Venue.fromJson).toList(),
         invites: _list(inviteRows).map(_invite).toList(),
         joinRequests: _list(joinRows).map(_join).toList(),
-        auditEvents: auditRows.map((row) => _audit(Map<String, dynamic>.from(row as Map))).toList(),
+        auditEvents: auditRows
+            .map((row) => _audit(Map<String, dynamic>.from(row as Map)))
+            .toList(),
+        isPlatformAdmin: isPlatformAdmin,
       );
     });
   }
@@ -89,11 +114,7 @@ class SupabaseTenantRepository implements TenantRepository {
     return _guard(() async {
       final id = await _client.rpc(
         'create_organization',
-        params: {
-          'p_name': name,
-          'p_slug': slug,
-          'p_legal_name': legalName,
-        },
+        params: {'p_name': name, 'p_slug': slug, 'p_legal_name': legalName},
       );
       return id.toString();
     });
@@ -103,7 +124,7 @@ class SupabaseTenantRepository implements TenantRepository {
   Future<String> createVenue(CreateVenueRequest request) {
     return _guard(() async {
       final id = await _client.rpc(
-        'create_venue',
+        'create_venue_geofenced',
         params: {
           'p_organization_id': request.organizationId,
           'p_name': request.name,
@@ -116,6 +137,9 @@ class SupabaseTenantRepository implements TenantRepository {
           'p_region': request.region,
           'p_postal_code': request.postalCode,
           'p_service_style': request.serviceStyle,
+          'p_latitude': request.geofenceLatitude,
+          'p_longitude': request.geofenceLongitude,
+          'p_radius_ft': request.geofenceRadiusFt,
         },
       );
       return id.toString();
@@ -142,7 +166,10 @@ class SupabaseTenantRepository implements TenantRepository {
         },
       );
       final map = Map<String, dynamic>.from(raw as Map);
-      return InviteIssue(id: map['id'].toString(), created: map['created'] == true);
+      return InviteIssue(
+        id: map['id'].toString(),
+        created: map['created'] == true,
+      );
     });
   }
 
@@ -155,13 +182,18 @@ class SupabaseTenantRepository implements TenantRepository {
 
   @override
   Future<void> acceptInvite(String token) {
-    return _guard(() => _client.rpc('accept_invite', params: {'p_token': token}));
+    return _guard(
+      () => _client.rpc('accept_invite', params: {'p_token': token}),
+    );
   }
 
   @override
   Future<VenueLookup?> lookupVenue(String code) {
     return _guard(() async {
-      final raw = await _client.rpc('lookup_venue_by_code', params: {'p_code': code});
+      final raw = await _client.rpc(
+        'lookup_venue_by_code',
+        params: {'p_code': code},
+      );
       final rows = _list(raw);
       if (rows.isEmpty) return null;
       final row = rows.first;
@@ -183,11 +215,7 @@ class SupabaseTenantRepository implements TenantRepository {
     return _guard(
       () => _client.rpc(
         'request_join',
-        params: {
-          'p_code': code,
-          'p_role_key': roleKey,
-          'p_message': message,
-        },
+        params: {'p_code': code, 'p_role_key': roleKey, 'p_message': message},
       ),
     );
   }
@@ -206,14 +234,14 @@ class SupabaseTenantRepository implements TenantRepository {
   }
 
   @override
-  Future<void> assignRole({required String membershipId, required String roleKey}) {
+  Future<void> assignRole({
+    required String membershipId,
+    required String roleKey,
+  }) {
     return _guard(
       () => _client.rpc(
         'assign_membership_role',
-        params: {
-          'p_membership_id': membershipId,
-          'p_role_key': roleKey,
-        },
+        params: {'p_membership_id': membershipId, 'p_role_key': roleKey},
       ),
     );
   }
@@ -221,20 +249,31 @@ class SupabaseTenantRepository implements TenantRepository {
   @override
   Future<String?> venueJoinCode(String venueId) {
     return _guard(() async {
-      final code = await _client.rpc('venue_join_code', params: {'p_venue_id': venueId});
+      final code = await _client.rpc(
+        'venue_join_code',
+        params: {'p_venue_id': venueId},
+      );
       return code as String?;
     });
   }
 
   @override
-  Future<void> updateDisplayName({required String userId, required String name}) {
+  Future<void> updateDisplayName({
+    required String userId,
+    required String name,
+  }) {
     return _guard(
-      () => _client.from('profiles').update({'display_name': name}).eq('id', userId),
+      () => _client
+          .from('profiles')
+          .update({'display_name': name})
+          .eq('id', userId),
     );
   }
 
   List<Map<String, dynamic>> _list(dynamic raw) {
-    return (raw as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+    return (raw as List)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
   }
 
   MembershipRecord _membership(Map<String, dynamic> row) {

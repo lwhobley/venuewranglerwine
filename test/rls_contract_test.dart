@@ -9,8 +9,8 @@ void main() {
   final migration = File(
     'supabase/migrations/20260927000000_phase1_tenant_auth.sql',
   ).readAsStringSync();
-  final catalog = File(
-    'supabase/migrations/20260927000100_role_catalog.sql',
+  final workforceCatalog = File(
+    'supabase/migrations/20260928094804_workforce_management.sql',
   ).readAsStringSync();
 
   test('every tenant table enables row level security', () {
@@ -30,7 +30,9 @@ void main() {
     ];
     for (final table in tables) {
       expect(
-        migration.contains('alter table public.$table enable row level security'),
+        migration.contains(
+          'alter table public.$table enable row level security',
+        ),
         isTrue,
         reason: table,
       );
@@ -54,10 +56,11 @@ void main() {
   });
 
   test('role catalog matches the client capability matrix', () {
-    final grants = RegExp(
-      r"\('([a-z_]+)', '([a-z0-9_.]+)'\)",
-    ).allMatches(catalog.split('-- role_permissions').last);
-    final actual = grants.map((match) => '${match.group(1)}|${match.group(2)}').toSet();
+    final grants = RegExp(r"\('([a-z_]+)', '([a-z0-9_.]+)'\)")
+        .allMatches(workforceCatalog.split('-- role_permissions').last);
+    final actual = grants
+        .map((match) => '${match.group(1)}|${match.group(2)}')
+        .toSet();
     final expected = <String>{};
     for (final role in AppRole.values) {
       for (final permission in RoleCatalog.permissionsFor(role)) {
@@ -66,7 +69,11 @@ void main() {
     }
     expect(actual, expected);
     for (final permission in Permission.all) {
-      expect(catalog.contains("'$permission'"), isTrue, reason: permission);
+      expect(
+        workforceCatalog.contains("'$permission'"),
+        isTrue,
+        reason: permission,
+      );
     }
   });
 }

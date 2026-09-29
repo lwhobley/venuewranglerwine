@@ -10,8 +10,7 @@ class WorkspaceSelection {
   final String? venueId;
 }
 
-final workspaceControllerProvider =
-    NotifierProvider<WorkspaceController, WorkspaceSelection>(WorkspaceController.new);
+final workspaceControllerProvider = NotifierProvider<WorkspaceController, WorkspaceSelection>(WorkspaceController.new);
 
 class WorkspaceController extends Notifier<WorkspaceSelection> {
   String? _organizationId;
@@ -38,14 +37,13 @@ class WorkspaceController extends Notifier<WorkspaceSelection> {
     if (session == null || !session.hasMembership) {
       return const WorkspaceSelection();
     }
-    final orgIds = session.ownMemberships.map((item) => item.organizationId).toSet();
-    final organizationId = orgIds.contains(_organizationId)
-        ? _organizationId
-        : session.ownMemberships.first.organizationId;
+    final orgIds = session.isPlatformAdmin
+        ? session.organizations.map((item) => item.id).toSet()
+        : session.ownMemberships.map((item) => item.organizationId).toSet();
+    if (orgIds.isEmpty) return const WorkspaceSelection();
+    final organizationId = orgIds.contains(_organizationId) ? _organizationId : orgIds.first;
     final venues = session.venuesFor(organizationId);
-    final venueId = venues.any((venue) => venue.id == _venueId)
-        ? _venueId
-        : (venues.isEmpty ? null : venues.first.id);
+    final venueId = venues.any((venue) => venue.id == _venueId) ? _venueId : (venues.isEmpty ? null : venues.first.id);
     _organizationId = organizationId;
     _venueId = venueId;
     return WorkspaceSelection(organizationId: organizationId, venueId: venueId);

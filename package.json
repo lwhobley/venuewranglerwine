@@ -1,0 +1,9 @@
+{
+  "name": "venuewranglerwine",
+  "version": "1.0.0",
+  "private": true,
+  "description": "EAS build metadata for the Flutter Venue Wrangler app",
+  "scripts": {
+    "build:ios": "npx eas-cli@latest build --platform ios --profile production"
+  }
+}

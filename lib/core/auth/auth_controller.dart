@@ -4,6 +4,8 @@ import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import '../offline/mutation_queue.dart';
 import '../../features/wine_inventory/data/count_draft_store.dart';
+import '../../features/workforce/data/workforce_repository.dart';
+import '../../features/workforce/data/workforce_notifications.dart';
 
 import '../config/app_config.dart';
 import 'auth_repository.dart';
@@ -36,7 +38,9 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<bool> signIn({required String email, required String password}) {
-    return ref.read(authRepositoryProvider).signIn(email: email, password: password);
+    return ref
+        .read(authRepositoryProvider)
+        .signIn(email: email, password: password);
   }
 
   Future<bool> signUp({
@@ -50,6 +54,15 @@ class AuthController extends Notifier<AuthState> {
   }
 
   Future<void> signOut() async {
+    try {
+      await Supabase.instance.client.rpc('workforce_push_disable');
+    } catch (_) {
+      // Local cleanup must still complete when the device has lost connectivity.
+    }
+    final notifications = ref.read(workforceNotificationsProvider);
+    if (notifications.supported) await notifications.local.cancelAll();
+    ref.invalidate(workforceNotificationsProvider);
+    await ref.read(workforceDatabaseProvider).clear();
     final preferences = await SharedPreferences.getInstance();
     await preferences.remove(CountDraftStore.draftsKey);
     await preferences.remove(CountDraftStore.syncKey);

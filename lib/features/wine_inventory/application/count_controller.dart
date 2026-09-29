@@ -75,6 +75,7 @@ class CountDeskController extends AsyncNotifier<CountDesk> {
     } on NetworkFailure {
       sheet = const [];
     }
+    if (sheet.isNotEmpty) await store.rememberSheetLots(sessionId, sheet);
     return CountDesk(
       drafts: store.draftsFor(sessionId),
       sheet: sheet,
@@ -104,10 +105,23 @@ class CountDeskController extends AsyncNotifier<CountDesk> {
       );
       lotCount = choices.length;
       chosenLot ??= choices.length == 1 ? choices.single.lotId : null;
+      await store.saveLotChoices(
+        sessionId: sessionId,
+        locationCode: parsed,
+        sku: sku.trim().toUpperCase(),
+        lotIds: [for (final choice in choices) choice.lotId],
+      );
     } on NetworkFailure {
-      if (chosenLot == null) {
+      final cached = store.cachedLotIds(
+        sessionId: sessionId,
+        locationCode: parsed,
+        sku: sku.trim().toUpperCase(),
+      );
+      if (cached == null && chosenLot == null) {
         throw const ValidationFailure('Connect once and choose the lot before counting this slot offline.');
       }
+      lotCount = cached?.length ?? (chosenLot == null ? 0 : 1);
+      chosenLot = cachedLotId(lotIds: cached, selected: chosenLot);
     }
     final lotError = lotSelectionError(lotCount: lotCount, lotId: chosenLot);
     if (lotError != null) throw ValidationFailure(lotError);

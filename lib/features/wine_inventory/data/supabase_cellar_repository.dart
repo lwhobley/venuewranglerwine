@@ -15,7 +15,7 @@ class SupabaseCellarRepository implements CellarRepository {
       final locations = _list(
         await _client
             .from('storage_locations')
-            .select('id, kind, name, code')
+            .select('id, kind, name, code, parent_id')
             .eq('venue_id', venueId),
       );
       final templates = _list(
@@ -37,8 +37,8 @@ class SupabaseCellarRepository implements CellarRepository {
       );
       final profiles = _list(
         await _client
-            .from('wine_profiles')
-            .select('item_id, producer, cuvee, wine_type, vintage, bottle_ml, inventory_items(sku, name)')
+            .from('inventory_items')
+            .select('id, sku, name, wine_profiles(producer, cuvee, wine_type, vintage, bottle_ml)')
             .eq('organization_id', organizationId),
       );
       final vendors = _list(
@@ -88,6 +88,7 @@ class SupabaseCellarRepository implements CellarRepository {
               name: row['name'] as String,
               code: row['code'] as String,
               kind: row['kind'] as String,
+              parentId: row['parent_id'] as String?,
             ),
         ],
         templates: [
@@ -266,17 +267,18 @@ class SupabaseCellarRepository implements CellarRepository {
   }
 
   WineRecord _wine(Map<String, dynamic> row) {
-    final item = row['inventory_items'] == null
+    final profile = row['wine_profiles'] == null
         ? null
-        : Map<String, dynamic>.from(row['inventory_items'] as Map);
+        : Map<String, dynamic>.from(row['wine_profiles'] as Map);
     return WineRecord(
-      itemId: row['item_id'] as String,
-      sku: item?['sku'] as String? ?? '',
-      producer: row['producer'] as String,
-      cuvee: row['cuvee'] as String,
-      wineType: row['wine_type'] as String,
-      bottleMl: row['bottle_ml'] as int,
-      vintage: row['vintage'] as int?,
+      itemId: row['id'] as String,
+      sku: row['sku'] as String,
+      producer: profile?['producer'] as String? ?? '',
+      cuvee: profile?['cuvee'] as String? ?? '',
+      wineType: profile?['wine_type'] as String? ?? 'inventory',
+      bottleMl: profile?['bottle_ml'] as int? ?? 0,
+      vintage: profile?['vintage'] as int?,
+      catalogName: profile == null ? row['name'] as String : null,
     );
   }
 

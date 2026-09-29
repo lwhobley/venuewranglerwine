@@ -43,6 +43,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.kotlin/
 
 # Widget Preview related
 .widget_preview/
+
+.env
+
+# Expo EAS tooling and local signing credentials
+node_modules/
+.expo/
+credentials.json
+.eas/flutter-defines.json

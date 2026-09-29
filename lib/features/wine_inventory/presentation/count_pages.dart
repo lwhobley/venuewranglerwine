@@ -216,6 +216,16 @@ class _CountModePageState extends ConsumerState<CountModePage> {
                         locationCode: _location.text,
                         sku: _sku.text,
                       );
+                      final parsed = parseLocationScan(_location.text);
+                      if (parsed != null) {
+                        final store = await ref.read(countDraftStoreProvider.future);
+                        await store.saveLotChoices(
+                          sessionId: widget.sessionId,
+                          locationCode: parsed,
+                          sku: _sku.text.trim().toUpperCase(),
+                          lotIds: [for (final lot in lots) lot.lotId],
+                        );
+                      }
                       setState(() {
                         _lots = lots;
                         _lotId = lots.length == 1 ? lots.single.lotId : null;

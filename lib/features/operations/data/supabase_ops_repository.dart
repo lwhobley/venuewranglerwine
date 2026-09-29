@@ -220,6 +220,130 @@ class SupabaseOpsRepository {
     }));
   }
 
+  Future<void> connectPos({
+    required String organizationId,
+    required String providerKey,
+    String? accessToken,
+    String? clientId,
+    String? clientSecret,
+    String? merchantId,
+    String? shopDomain,
+    String? webhookUrl,
+    String? webhookSecret,
+    bool sandbox = false,
+  }) {
+    return _gateway('connect', {
+      'organizationId': organizationId,
+      'providerKey': providerKey,
+      'accessToken': accessToken,
+      'clientId': clientId,
+      'clientSecret': clientSecret,
+      'merchantId': merchantId,
+      'shopDomain': shopDomain,
+      'webhookUrl': webhookUrl,
+      'webhookSecret': webhookSecret,
+      'sandbox': sandbox,
+    });
+  }
+
+  Future<Map<String, dynamic>> ingestPos({
+    required String connectionId,
+    required String venueId,
+  }) {
+    return _gatewayResult('ingest', {
+      'connectionId': connectionId,
+      'venueId': venueId,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> squareLocations(
+    String connectionId,
+  ) async {
+    final result = await _gatewayResult('locations', {
+      'connectionId': connectionId,
+    });
+    return _list(result['locations']);
+  }
+
+  Future<void> savePosVenueMap({
+    required String connectionId,
+    required String venueId,
+    required String externalLocationId,
+  }) => _guard(
+    () => _client.rpc(
+      'save_pos_venue_map',
+      params: {
+        'p_connection_id': connectionId,
+        'p_venue_id': venueId,
+        'p_external_location_id': externalLocationId,
+      },
+    ),
+  );
+
+  Future<void> savePosItemMap({
+    required String connectionId,
+    required String externalSku,
+    required String localSku,
+  }) => _guard(
+    () => _client.rpc(
+      'save_pos_item_map',
+      params: {
+        'p_connection_id': connectionId,
+        'p_external_sku': externalSku,
+        'p_local_sku': localSku,
+      },
+    ),
+  );
+
+  Future<List<Map<String, dynamic>>> posUnmappedItems({
+    required String connectionId,
+    required String venueId,
+  }) => _rows('pos_unmapped_items', {
+    'p_connection_id': connectionId,
+    'p_venue_id': venueId,
+  });
+
+  Future<String?> posVenueLocation({
+    required String connectionId,
+    required String venueId,
+  }) async {
+    final rows = await _guard(
+      () async => _list(
+        await _client
+            .from('integration_venue_maps')
+            .select('external_location_id')
+            .eq('connection_id', connectionId)
+            .eq('venue_id', venueId),
+      ),
+    );
+    return rows.isEmpty ? null : rows.first['external_location_id'] as String?;
+  }
+
+  Future<void> push86({
+    required String connectionId,
+    required String sku,
+    required String externalSku,
+    required bool available,
+  }) {
+    return _gateway('push86', {
+      'connectionId': connectionId,
+      'sku': sku,
+      'externalSku': externalSku,
+      'available': available,
+    });
+  }
+
+  Future<List<Map<String, dynamic>>> integrations(String organizationId) {
+    return _guard(
+      () async => _list(
+        await _client
+            .from('integration_connections')
+            .select('id, provider_key, status')
+            .eq('organization_id', organizationId),
+      ),
+    );
+  }
+
   Future<List<Map<String, dynamic>>> report(String venueId) => _rows('operational_report', {'p_venue_id': venueId});
 
   Future<List<Map<String, dynamic>>> events(String venueId) {
@@ -252,6 +376,38 @@ class SupabaseOpsRepository {
 
   List<Map<String, dynamic>> _list(dynamic raw) {
     return (raw as List).map((row) => Map<String, dynamic>.from(row as Map)).toList();
+  }
+
+  Future<void> _gateway(String action, Map<String, Object?> fields) async {
+    await _gatewayResult(action, fields);
+  }
+
+  Future<Map<String, dynamic>> _gatewayResult(
+    String action,
+    Map<String, Object?> fields,
+  ) {
+    final body = <String, Object?>{'action': action};
+    for (final entry in fields.entries) {
+      final value = entry.value;
+      if (value == null || value == '') continue;
+      body[entry.key] = value;
+    }
+    return _guard(() async {
+      final response = await _client.functions.invoke(
+        'pos-gateway',
+        body: body,
+      );
+      final data = response.data;
+      if (data is Map && data['error'] != null) {
+        throw Exception(data['error'].toString());
+      }
+      if (data is Map && data['status'] == 'push_failed') {
+        throw Exception('push_failed');
+      }
+      return data is Map
+          ? Map<String, dynamic>.from(data)
+          : <String, dynamic>{};
+    });
   }
 
   Future<T> _guard<T>(Future<T> Function() action) async {

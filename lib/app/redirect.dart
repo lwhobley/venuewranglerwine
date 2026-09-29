@@ -31,7 +31,7 @@ String? resolveRedirect({
   }
 
   final session = tenant.value ?? TenantSession.empty();
-  if (!session.hasMembership) {
+  if (!session.hasMembership || (session.isPlatformAdmin && session.organizations.isEmpty)) {
     const allowed = {'/onboarding/organization', '/onboarding/join', '/invite'};
     return allowed.contains(location) ? null : '/onboarding/organization';
   }
@@ -46,9 +46,7 @@ String? resolveRedirect({
     '/onboarding/organization',
   };
   if (entryGates.contains(location)) {
-    final next = session.hasVenue || !session.canCreateVenue
-        ? '/app/home'
-        : '/onboarding/venue';
+    final next = session.hasVenue || !session.canCreateVenue ? '/app/home' : '/onboarding/venue';
     return next == location ? null : next;
   }
   return null;

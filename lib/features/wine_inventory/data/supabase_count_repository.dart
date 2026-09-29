@@ -150,6 +150,7 @@ class SupabaseCountRepository implements CountRepository {
           reason: row['reason'] as String? ?? '',
           mode: row['mode'] as String? ?? 'blind',
           status: row['status'] as String? ?? 'in_progress',
+          lotId: row['lot_id'] as String?,
         );
       }).toList();
     });

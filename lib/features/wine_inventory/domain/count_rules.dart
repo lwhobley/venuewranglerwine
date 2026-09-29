@@ -49,6 +49,12 @@ String? visibleExpected({
   return null;
 }
 
+String? cachedLotId({required List<String>? lotIds, required String? selected}) {
+  if (selected != null && selected.isNotEmpty) return selected;
+  if (lotIds != null && lotIds.length == 1) return lotIds.single;
+  return null;
+}
+
 String? lotSelectionError({required int lotCount, required String? lotId}) {
   if (lotCount > 1 && (lotId == null || lotId.isEmpty)) {
     return 'Choose the lot before saving this count.';

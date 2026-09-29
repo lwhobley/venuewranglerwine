@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Venue Wrangler Wine",
+    "slug": "venuewranglerwine",
+    "version": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "venuewranglerwine",
+      "appleTeamId": "8MTB6AL22R"
+    }
+  }
+}

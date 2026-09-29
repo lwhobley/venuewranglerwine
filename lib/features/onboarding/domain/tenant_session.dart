@@ -12,6 +12,7 @@ class TenantSession {
     required this.invites,
     required this.joinRequests,
     required this.auditEvents,
+    this.isPlatformAdmin = false,
   });
 
   final String? userId;
@@ -21,6 +22,7 @@ class TenantSession {
   final List<InviteRecord> invites;
   final List<JoinRequestRecord> joinRequests;
   final List<AuditEventRecord> auditEvents;
+  final bool isPlatformAdmin;
 
   factory TenantSession.empty() {
     return const TenantSession(
@@ -38,11 +40,12 @@ class TenantSession {
     return memberships.where((membership) => membership.userId == userId).toList();
   }
 
-  bool get hasMembership => ownMemberships.isNotEmpty;
+  bool get hasMembership => isPlatformAdmin || ownMemberships.isNotEmpty;
 
   bool get hasVenue => venues.isNotEmpty;
 
   bool can(String organizationId, String permission) {
+    if (isPlatformAdmin) return true;
     const checker = CapabilityChecker();
     for (final membership in ownMemberships) {
       if (membership.organizationId != organizationId) continue;
@@ -55,10 +58,10 @@ class TenantSession {
   }
 
   bool get canCreateVenue {
+    if (isPlatformAdmin) return true;
     return ownMemberships.any((membership) {
       final role = AppRole.byKey(membership.roleKey);
-      return role != null &&
-          const CapabilityChecker().can(role: role, permission: Permission.venueCreate);
+      return role != null && const CapabilityChecker().can(role: role, permission: Permission.venueCreate);
     });
   }
 

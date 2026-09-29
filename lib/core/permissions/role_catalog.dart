@@ -200,10 +200,81 @@ abstract final class RoleCatalog {
   };
 
   static Set<String> permissionsFor(AppRole role) {
-    return Set.unmodifiable(grants[role] ?? const {});
+    return Set.unmodifiable({...?grants[role], ..._workforce(role)});
   }
 
   static bool roleHas(AppRole role, String permission) {
-    return grants[role]?.contains(permission) ?? false;
+    return permissionsFor(role).contains(permission);
+  }
+
+  static Set<String> _workforce(AppRole role) {
+    final personal = {
+      Permission.orgRead,
+      Permission.venueRead,
+      Permission.scheduleSelf,
+      Permission.scheduleMarketplace,
+      Permission.timeclockSelf,
+      Permission.chatWrite,
+      Permission.documentRead,
+    };
+    if (role == AppRole.auditor) {
+      return {
+        Permission.scheduleBoard,
+        Permission.scheduleReport,
+        Permission.laborRead,
+      };
+    }
+    if (role == AppRole.shiftLead) {
+      return {...personal, Permission.scheduleBoard, Permission.scheduleReport};
+    }
+    if ({
+      AppRole.employee,
+      AppRole.host,
+      AppRole.server,
+      AppRole.bartender,
+      AppRole.inventoryCounter,
+    }.contains(role)) {
+      return personal;
+    }
+    final management = {
+      ...personal,
+      Permission.scheduleBoard,
+      Permission.scheduleCreate,
+      Permission.scheduleEdit,
+      Permission.scheduleRetract,
+      Permission.scheduleCopy,
+      Permission.scheduleOpen,
+      Permission.scheduleRequirements,
+      Permission.scheduleDropReview,
+      Permission.schedulePickupReview,
+      Permission.scheduleSwapReview,
+      Permission.scheduleAssign,
+      Permission.availabilityEdit,
+      Permission.availabilityAll,
+      Permission.timeOffReview,
+      Permission.scheduleTemplates,
+      Permission.scheduleReport,
+    };
+    if (role == AppRole.departmentManager) {
+      return {...management, Permission.scheduleOverride};
+    }
+    if ({
+      AppRole.organizationOwner,
+      AppRole.venueAdministrator,
+      AppRole.generalManager,
+      AppRole.scheduler,
+    }.contains(role)) {
+      return {
+        ...management,
+        Permission.scheduleOverride,
+        Permission.laborRead,
+        Permission.wageManage,
+        Permission.scheduleSettings,
+        Permission.staffManage,
+        Permission.staffCertify,
+        Permission.timeclockManage,
+      };
+    }
+    return management;
   }
 }

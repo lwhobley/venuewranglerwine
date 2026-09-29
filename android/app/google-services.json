@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "563459203428",
+    "project_id": "venuewranglerwine",
+    "storage_bucket": "venuewranglerwine.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:563459203428:android:2d5045ed85b35c05121a71",
+        "android_client_info": {
+          "package_name": "com.venuewrangler.venue_wrangler"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDKqsQ3zPd6CK_8ohdwLeXOrOd4gS-PORs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

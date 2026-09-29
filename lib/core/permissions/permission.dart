@@ -1,4 +1,28 @@
 abstract final class Permission {
+  static const scheduleBoard = 'schedule.board';
+  static const scheduleCreate = 'schedule.create';
+  static const scheduleEdit = 'schedule.edit';
+  static const scheduleRetract = 'schedule.retract';
+  static const scheduleCopy = 'schedule.copy';
+  static const scheduleOpen = 'schedule.open';
+  static const scheduleRequirements = 'schedule.requirements';
+  static const scheduleDropReview = 'schedule.drop.review';
+  static const schedulePickupReview = 'schedule.pickup.review';
+  static const scheduleSwapReview = 'schedule.swap.review';
+  static const scheduleAssign = 'schedule.assign';
+  static const scheduleOverride = 'schedule.override';
+  static const laborRead = 'labor.read';
+  static const wageManage = 'labor.wage.manage';
+  static const availabilityEdit = 'schedule.availability.edit';
+  static const availabilityAll = 'schedule.availability.all';
+  static const timeOffReview = 'schedule.timeoff.review';
+  static const scheduleTemplates = 'schedule.templates';
+  static const scheduleReport = 'schedule.report';
+  static const scheduleSettings = 'schedule.settings';
+  static const staffManage = 'staff.manage';
+  static const staffCertify = 'staff.certify';
+  static const scheduleSelf = 'schedule.self';
+  static const scheduleMarketplace = 'schedule.marketplace';
   static const orgRead = 'org.read';
   static const orgUpdate = 'org.update';
   static const venueCreate = 'venue.create';
@@ -47,6 +71,30 @@ abstract final class Permission {
   static const settingsManage = 'settings.manage';
 
   static const all = <String>[
+    scheduleBoard,
+    scheduleCreate,
+    scheduleEdit,
+    scheduleRetract,
+    scheduleCopy,
+    scheduleOpen,
+    scheduleRequirements,
+    scheduleDropReview,
+    schedulePickupReview,
+    scheduleSwapReview,
+    scheduleAssign,
+    scheduleOverride,
+    laborRead,
+    wageManage,
+    availabilityEdit,
+    availabilityAll,
+    timeOffReview,
+    scheduleTemplates,
+    scheduleReport,
+    scheduleSettings,
+    staffManage,
+    staffCertify,
+    scheduleSelf,
+    scheduleMarketplace,
     orgRead,
     orgUpdate,
     venueCreate,
@@ -96,6 +144,30 @@ abstract final class Permission {
   ];
 
   static const descriptions = <String, String>{
+    scheduleBoard: 'View all authorized schedules',
+    scheduleCreate: 'Create draft shifts',
+    scheduleEdit: 'Edit draft and published shifts',
+    scheduleRetract: 'Retract schedules',
+    scheduleCopy: 'Copy schedules',
+    scheduleOpen: 'Offer open shifts',
+    scheduleRequirements: 'Manage staffing requirements',
+    scheduleDropReview: 'Review shift releases',
+    schedulePickupReview: 'Review shift pickups',
+    scheduleSwapReview: 'Review shift swaps',
+    scheduleAssign: 'Assign qualified staff',
+    scheduleOverride: 'Document availability and rest overrides',
+    laborRead: 'View wages and labor costs',
+    wageManage: 'Manage effective wage rates',
+    availabilityEdit: 'Edit staff availability',
+    availabilityAll: 'View staff availability',
+    timeOffReview: 'Review time off',
+    scheduleTemplates: 'Manage schedule templates',
+    scheduleReport: 'View schedule and attendance reports',
+    scheduleSettings: 'Manage workforce settings',
+    staffManage: 'Manage employment and job roles',
+    staffCertify: 'Verify qualifications and certifications',
+    scheduleSelf: 'View personal shifts and availability',
+    scheduleMarketplace: 'Request shift releases, pickups and swaps',
     orgRead: 'View the organization profile',
     orgUpdate: 'Update organization identity',
     venueCreate: 'Create a venue',

@@ -69,6 +69,25 @@ void main() {
     expect(reloaded.lastSync(), isNull);
   });
 
+  test('a cached single lot can be counted without another lookup', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final store = CountDraftStore(preferences);
+    await store.saveLotChoices(
+      sessionId: 'session-1',
+      locationCode: 'CELLAR-A/RACK-01/SIDE-A/ROW-01/BIN-01',
+      sku: 'CLB-001',
+      lotIds: const ['lot-1'],
+    );
+    final cached = CountDraftStore(preferences).cachedLotIds(
+      sessionId: 'session-1',
+      locationCode: 'CELLAR-A/RACK-01/SIDE-A/ROW-01/BIN-01',
+      sku: 'clb-001',
+    );
+    expect(cachedLotId(lotIds: cached, selected: null), 'lot-1');
+    expect(cachedLotId(lotIds: const ['a', 'b'], selected: null), isNull);
+  });
+
   test('count approval is a movement, and lines are not client-writable', () {
     final sql = File('supabase/migrations/20260927000300_phase3_counts.sql').readAsStringSync();
     expect(sql.contains('count_adjustment'), isTrue);
@@ -77,5 +96,15 @@ void main() {
     expect(sql.contains('grant insert on public.inventory_count_lines'), isFalse);
     expect(sql.contains('alter table public.inventory_count_lines enable row level security'), isTrue);
     expect(sql.contains('v_show_expected'), isTrue);
+  });
+
+  test('a supplied lot must belong to the submitted SKU', () {
+    final sql = File('supabase/migrations/20260927001300_pos_review_fixes.sql').readAsStringSync();
+    expect(sql.contains('lot_item_mismatch'), isTrue);
+    expect(sql.contains('v_line.item_id is distinct from v_item'), isTrue);
+    expect(sql.contains("'pos_sale'"), isTrue);
+    expect(sql.contains('on conflict (connection_id, external_id) do nothing'), isTrue);
+    expect(sql.contains('assert_pos_actor'), isTrue);
+    expect(sql.indexOf('do nothing'), lessThan(sql.indexOf("reason, actor_id")));
   });
 }

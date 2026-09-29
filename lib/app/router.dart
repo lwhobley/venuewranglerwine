@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 
 import '../core/auth/auth_controller.dart';
 import '../features/dashboard/presentation/workspace_pages.dart';
+import '../features/data_import/presentation/data_import_page.dart';
+import '../features/floor_plan/presentation/floor_host_page.dart';
 import '../features/onboarding/application/tenant_controller.dart';
 import '../features/onboarding/presentation/auth_pages.dart';
 import '../features/onboarding/presentation/onboarding_pages.dart';
 import '../features/operations/presentation/business_page.dart';
 import '../features/operations/presentation/host_page.dart';
 import '../features/operations/presentation/people_page.dart';
+import '../features/workforce/presentation/workforce_page.dart';
 import '../features/wine_inventory/presentation/cellar_pages.dart';
 import '../features/wine_inventory/presentation/count_pages.dart';
 import '../features/wine_inventory/presentation/allocation_pages.dart';
@@ -74,6 +77,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AppShell(child: child),
         routes: [
           GoRoute(path: '/app/home', builder: (context, state) => const HomePage()),
+          GoRoute(path: '/app/import', builder: (context, state) => const DataImportPage()),
           GoRoute(path: '/app/cellar', builder: (context, state) => const CellarPage()),
           GoRoute(path: '/app/cellar/import', builder: (context, state) => const WineImportPage()),
           GoRoute(path: '/app/cellar/receive', builder: (context, state) => const ReceivePage()),
@@ -89,8 +93,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/app/cellar/counts/:id',
             builder: (context, state) => CountModePage(sessionId: state.pathParameters['id']!),
           ),
-          GoRoute(path: '/app/host', builder: (context, state) => const HostPage()),
+          GoRoute(path: '/app/host', builder: (context, state) => const HostPage(),
+            onExit: (context, state) => ref.read(floorExitGuardProvider).canLeave()),
           GoRoute(path: '/app/people', builder: (context, state) => const PeoplePage()),
+          GoRoute(path: '/app/scheduling', builder: (context, state) => WorkforcePage(initialShift: state.uri.queryParameters['shift'])),
           GoRoute(path: '/app/business', builder: (context, state) => const BusinessPage()),
           GoRoute(path: '/app/team', builder: (context, state) => const TeamPage()),
           GoRoute(path: '/app/profile', builder: (context, state) => const ProfilePage()),

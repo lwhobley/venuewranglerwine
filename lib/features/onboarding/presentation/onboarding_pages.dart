@@ -7,19 +7,23 @@ import '../../../core/permissions/app_role.dart';
 import '../../../core/time/venue_clock.dart';
 import '../../../core/widgets/status_banner.dart';
 import '../application/tenant_controller.dart';
+import '../application/workspace_controller.dart';
 import '../domain/tenant_models.dart';
 import '../domain/tenant_repository.dart';
 import '../domain/validators.dart';
 import 'auth_frame.dart';
+import 'venue_geofence_fields.dart';
 
 class CreateOrganizationPage extends ConsumerStatefulWidget {
   const CreateOrganizationPage({super.key});
 
   @override
-  ConsumerState<CreateOrganizationPage> createState() => _CreateOrganizationPageState();
+  ConsumerState<CreateOrganizationPage> createState() =>
+      _CreateOrganizationPageState();
 }
 
-class _CreateOrganizationPageState extends ConsumerState<CreateOrganizationPage> {
+class _CreateOrganizationPageState
+    extends ConsumerState<CreateOrganizationPage> {
   final _name = TextEditingController();
   final _slug = TextEditingController();
   final _legal = TextEditingController();
@@ -47,11 +51,13 @@ class _CreateOrganizationPageState extends ConsumerState<CreateOrganizationPage>
       _error = null;
     });
     try {
-      await ref.read(tenantControllerProvider.notifier).createOrganization(
-        name: _name.text.trim(),
-        slug: _slug.text.trim(),
-        legalName: _legal.text.trim().isEmpty ? null : _legal.text.trim(),
-      );
+      await ref
+          .read(tenantControllerProvider.notifier)
+          .createOrganization(
+            name: _name.text.trim(),
+            slug: _slug.text.trim(),
+            legalName: _legal.text.trim().isEmpty ? null : _legal.text.trim(),
+          );
     } on AppFailure catch (failure) {
       setState(() => _error = failure.message);
     } finally {
@@ -85,7 +91,9 @@ class _CreateOrganizationPageState extends ConsumerState<CreateOrganizationPage>
           const SizedBox(height: 12),
           TextField(
             controller: _legal,
-            decoration: const InputDecoration(labelText: 'Legal name (optional)'),
+            decoration: const InputDecoration(
+              labelText: 'Legal name (optional)',
+            ),
           ),
           const SizedBox(height: 16),
           FilledButton(
@@ -116,6 +124,10 @@ class CreateVenuePage extends ConsumerStatefulWidget {
 class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
   final _name = TextEditingController();
   final _city = TextEditingController();
+  final _address = TextEditingController();
+  final _latitude = TextEditingController();
+  final _longitude = TextEditingController();
+  final _radius = TextEditingController(text: '1000');
   var _timezone = 'America/New_York';
   var _style = 'wine_club';
   var _busy = false;
@@ -125,19 +137,40 @@ class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
   void dispose() {
     _name.dispose();
     _city.dispose();
+    _address.dispose();
+    _latitude.dispose();
+    _longitude.dispose();
+    _radius.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
     final session = ref.read(tenantControllerProvider).value;
-    final orgId = session?.ownMemberships.firstOrNull?.organizationId;
+    final orgId =
+        ref.read(workspaceControllerProvider).organizationId ??
+        session?.ownMemberships.firstOrNull?.organizationId;
     if (orgId == null) {
       setState(() => _error = 'Create an organization first.');
       return;
     }
     final nameError = FieldValidator.organizationName(_name.text);
-    if (nameError != null) {
-      setState(() => _error = nameError);
+    final latitude = double.tryParse(_latitude.text.trim());
+    final longitude = double.tryParse(_longitude.text.trim());
+    final radius = int.tryParse(_radius.text.trim());
+    if (nameError != null ||
+        _address.text.trim().isEmpty ||
+        latitude == null ||
+        !latitude.isFinite ||
+        latitude.abs() > 90 ||
+        longitude == null ||
+        !longitude.isFinite ||
+        longitude.abs() > 180 ||
+        radius == null ||
+        radius < 1 ||
+        radius > 1000) {
+      setState(
+        () => _error = nameError ?? 'Enter the venue address, confirm its coordinates, and choose a clock radius from 1 to 1,000 feet.',
+      );
       return;
     }
     setState(() {
@@ -145,17 +178,23 @@ class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
       _error = null;
     });
     try {
-      await ref.read(tenantControllerProvider.notifier).createVenue(
-        CreateVenueRequest(
-          organizationId: orgId,
-          name: _name.text.trim(),
-          slug: FieldValidator.slugFromName(_name.text),
-          timezone: _timezone,
-          currencyCode: 'USD',
-          serviceStyle: _style,
-          city: _city.text.trim(),
-        ),
-      );
+      await ref
+          .read(tenantControllerProvider.notifier)
+          .createVenue(
+            CreateVenueRequest(
+              organizationId: orgId,
+              name: _name.text.trim(),
+              slug: FieldValidator.slugFromName(_name.text),
+              timezone: _timezone,
+              currencyCode: 'USD',
+              serviceStyle: _style,
+              city: _city.text.trim(),
+              addressLine1: _address.text.trim(),
+              geofenceLatitude: latitude,
+              geofenceLongitude: longitude,
+              geofenceRadiusFt: radius,
+            ),
+          );
       if (mounted) context.go('/app/home');
     } on AppFailure catch (failure) {
       setState(() => _error = failure.message);
@@ -168,7 +207,8 @@ class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
   Widget build(BuildContext context) {
     return AuthFrame(
       title: 'Open the venue',
-      subtitle: 'A wine club starts as an opening venue. Cellar mapping comes next.',
+      subtitle:
+          'A wine club starts as an opening venue. Cellar mapping comes next.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -183,6 +223,13 @@ class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
             decoration: const InputDecoration(labelText: 'City'),
           ),
           const SizedBox(height: 12),
+          VenueGeofenceFields(
+            address: _address,
+            latitude: _latitude,
+            longitude: _longitude,
+            radius: _radius,
+          ),
+          const SizedBox(height: 12),
           DropdownButtonFormField<String>(
             initialValue: _timezone,
             decoration: const InputDecoration(labelText: 'Timezone'),
@@ -190,7 +237,8 @@ class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
               for (final zone in hospitalityTimeZones)
                 DropdownMenuItem(value: zone, child: Text(zone)),
             ],
-            onChanged: (value) => setState(() => _timezone = value ?? _timezone),
+            onChanged: (value) =>
+                setState(() => _timezone = value ?? _timezone),
           ),
           const SizedBox(height: 12),
           DropdownButtonFormField<String>(
@@ -200,7 +248,10 @@ class _CreateVenuePageState extends ConsumerState<CreateVenuePage> {
               DropdownMenuItem(value: 'wine_club', child: Text('Wine club')),
               DropdownMenuItem(value: 'restaurant', child: Text('Restaurant')),
               DropdownMenuItem(value: 'club', child: Text('Club')),
-              DropdownMenuItem(value: 'event_venue', child: Text('Event venue')),
+              DropdownMenuItem(
+                value: 'event_venue',
+                child: Text('Event venue'),
+              ),
               DropdownMenuItem(value: 'bar', child: Text('Bar')),
             ],
             onChanged: (value) => setState(() => _style = value ?? _style),
@@ -246,7 +297,9 @@ class _JoinVenuePageState extends ConsumerState<JoinVenuePage> {
       _lookup = null;
     });
     try {
-      final found = await ref.read(tenantControllerProvider.notifier).lookupVenue(_code.text);
+      final found = await ref
+          .read(tenantControllerProvider.notifier)
+          .lookupVenue(_code.text);
       setState(() {
         _lookup = found;
         _error = found == null ? 'No venue uses that code.' : null;
@@ -264,11 +317,13 @@ class _JoinVenuePageState extends ConsumerState<JoinVenuePage> {
       _error = null;
     });
     try {
-      await ref.read(tenantControllerProvider.notifier).requestJoin(
-        code: _code.text,
-        roleKey: _role,
-        message: _message.text,
-      );
+      await ref
+          .read(tenantControllerProvider.notifier)
+          .requestJoin(
+            code: _code.text,
+            roleKey: _role,
+            message: _message.text,
+          );
       setState(() => _success = 'Request sent. A manager must approve it.');
     } on AppFailure catch (failure) {
       setState(() => _error = failure.message);
@@ -279,7 +334,9 @@ class _JoinVenuePageState extends ConsumerState<JoinVenuePage> {
 
   @override
   Widget build(BuildContext context) {
-    final roles = AppRole.values.where((role) => role != AppRole.organizationOwner);
+    final roles = AppRole.values.where(
+      (role) => role != AppRole.organizationOwner,
+    );
     return AuthFrame(
       title: 'Request to join',
       subtitle: 'Enter the venue code from a manager. This does not grant access yet.',
@@ -287,14 +344,18 @@ class _JoinVenuePageState extends ConsumerState<JoinVenuePage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_error != null) StatusBanner(message: _error!),
-          if (_success != null) StatusBanner(message: _success!, tone: BannerTone.success),
+          if (_success != null)
+            StatusBanner(message: _success!, tone: BannerTone.success),
           TextField(
             controller: _code,
             textCapitalization: TextCapitalization.characters,
             decoration: const InputDecoration(labelText: 'Venue code'),
           ),
           const SizedBox(height: 12),
-          OutlinedButton(onPressed: _busy ? null : _lookupVenue, child: const Text('Find venue')),
+          OutlinedButton(
+            onPressed: _busy ? null : _lookupVenue,
+            child: const Text('Find venue'),
+          ),
           if (_lookup != null) ...[
             const SizedBox(height: 16),
             Text('${_lookup!.venueName} · ${_lookup!.organizationName}'),
@@ -311,10 +372,15 @@ class _JoinVenuePageState extends ConsumerState<JoinVenuePage> {
             const SizedBox(height: 12),
             TextField(
               controller: _message,
-              decoration: const InputDecoration(labelText: 'Note to the manager'),
+              decoration: const InputDecoration(
+                labelText: 'Note to the manager',
+              ),
               maxLength: 500,
             ),
-            FilledButton(onPressed: _busy ? null : _request, child: const Text('Send request')),
+            FilledButton(
+              onPressed: _busy ? null : _request,
+              child: const Text('Send request'),
+            ),
           ],
           TextButton(
             onPressed: () => context.go('/onboarding/organization'),
@@ -362,7 +428,9 @@ class _AcceptInvitePageState extends ConsumerState<AcceptInvitePage> {
       _error = null;
     });
     try {
-      await ref.read(tenantControllerProvider.notifier).acceptInvite(_token.text.trim());
+      await ref
+          .read(tenantControllerProvider.notifier)
+          .acceptInvite(_token.text.trim());
     } on AppFailure catch (failure) {
       setState(() => _error = failure.message);
     } finally {

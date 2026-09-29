@@ -26,6 +26,9 @@ AppFailure mapFailure(Object error) {
   if (error is PostgrestException) {
     return _fromToken('${error.message} ${error.code ?? ''}');
   }
+  if (error is FunctionException) {
+    return _fromToken('${error.details ?? ''} ${error.reasonPhrase ?? ''}');
+  }
   final mapped = _fromToken(error.toString());
   if (mapped is! UnexpectedFailure) return mapped;
   return const UnexpectedFailure(
@@ -136,11 +139,22 @@ AppFailure _fromToken(String text) {
     'event_not_found': ValidationFailure('That event was not found.'),
     'event_closed': ValidationFailure('This event is already closed.'),
     'channel_not_found': ValidationFailure('That channel was not found.'),
-    'invalid_provider': ValidationFailure('Use a provider key such as pos_generic.'),
+    'invalid_provider': ValidationFailure('Choose a supported POS.'),
+    'handshake_required': ValidationFailure('The POS did not accept those credentials. Nothing was marked connected.'),
+    'push_failed': ValidationFailure('The POS did not accept the 86 update.'),
     'invalid_plan': ValidationFailure('Choose trial, active, or expired.'),
     'plan_required': PermissionFailure('Reports need an active or trial plan.'),
     'self_approval_denied': PermissionFailure('Someone else must approve a count you started or entered.'),
     'lot_required': ValidationFailure('This slot has more than one lot. Count each lot separately.'),
+    'lot_item_mismatch': ValidationFailure('That lot is a different wine than the SKU.'),
+    'pull_unsupported': ValidationFailure('Sales pull is available for Square. Other POS systems push checks in.'),
+    'pull_failed': ValidationFailure('The sales pull failed. Nothing new was marked complete.'),
+    'location_mapping_required': ValidationFailure('Choose the Square location for this venue before pulling sales.'),
+    'pos_stock_shortage': ValidationFailure('A mapped sale exceeds available house stock. Correct the stock, then pull again.'),
+    'connection_save_failed': ValidationFailure('The POS credentials could not be saved. The connection was not changed.'),
+    'invalid_location': ValidationFailure('Choose a Square location.'),
+    'invalid_item_map': ValidationFailure('Enter a Square item ID and an existing local wine SKU.'),
+    'item_already_applied': ValidationFailure('This Square item already depleted stock. Its mapping cannot be changed.'),
     'count_needs_recount': ValidationFailure('This count mixed lots. Start a new count and enter each lot.'),
     'count_out_of_scope': ValidationFailure('That slot is outside this count.'),
   };

@@ -1,0 +1,25 @@
+{
+  "cli": {
+    "appVersionSource": "local"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "environment": "production",
+      "ios": {
+        "config": "flutter-ios.yml",
+        "scheme": "Runner",
+        "buildConfiguration": "Release",
+        "image": "latest",
+        "credentialsSource": "remote"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6817233267"
+      }
+    }
+  }
+}

@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/widgets/hospitality_design.dart';
+
 import '../../../core/errors/app_failure.dart';
 import '../../../core/money/decimal_amount.dart';
 import '../../../core/permissions/permission.dart';
@@ -47,25 +49,39 @@ class _CellarPageState extends ConsumerState<CellarPage> {
     return cellar.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => _Retry(
-        message: error is AppFailure ? error.message : 'The cellar could not be loaded.',
+        message: error is AppFailure
+            ? error.message
+            : 'The cellar could not be loaded.',
         onRetry: () => ref.read(cellarControllerProvider.notifier).refresh(),
       ),
       data: (snapshot) {
-        final rooms = snapshot.rooms.where((room) => room.kind == 'room').toList();
-        final roomId = rooms.any((room) => room.id == _roomId) ? _roomId : rooms.firstOrNull?.id;
-        final templateKey = snapshot.templates.any((item) => item.key == _templateKey)
+        final rooms = snapshot.rooms
+            .where((room) => room.kind == 'room')
+            .toList();
+        final roomId = rooms.any((room) => room.id == _roomId)
+            ? _roomId
+            : rooms.firstOrNull?.id;
+        final templateKey =
+            snapshot.templates.any((item) => item.key == _templateKey)
             ? _templateKey
             : snapshot.templates.firstOrNull?.key;
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Text('Cellar', style: Theme.of(context).textTheme.headlineMedium),
-            const SizedBox(height: 8),
-            const Text('Map a room and a rack before the first delivery is put away.'),
+            const WorkspaceHeading(
+              title: 'The cellar',
+              subtitle: 'Every bottle has a place. Make it easy to find.',
+              icon: Icons.wine_bar_outlined,
+            ),
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
               children: [
+                if (canWrite)
+                  OutlinedButton(
+                    onPressed: () => context.go('/app/import'),
+                    child: const Text('Import inventory & locations'),
+                  ),
                 OutlinedButton(
                   onPressed: () => context.go('/app/cellar/import'),
                   child: const Text('Import wines'),
@@ -100,29 +116,70 @@ class _CellarPageState extends ConsumerState<CellarPage> {
             ],
             if (snapshot.stagingId != null) ...[
               const SizedBox(height: 16),
-              Text('Staging holds ${snapshot.staged.fold<int>(0, (sum, lot) => sum + int.parse(lot.quantity))} bottles.'),
+              Text(
+                'Staging holds ${snapshot.staged.fold<int>(0, (sum, lot) => sum + int.parse(lot.quantity))} bottles.',
+              ),
             ],
             const SizedBox(height: 16),
-            Text('Rooms', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'Locations & rooms',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            for (final location in snapshot.rooms.where(
+              (location) =>
+                  location.kind == 'concourse' ||
+                  location.kind == 'outlet' ||
+                  location.kind == 'zone',
+            ))
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(location.name),
+                subtitle: Text(
+                  '${location.kind} · ${location.code}${location.parentId == null ? '' : ' · under ${snapshot.rooms.where((parent) => parent.id == location.parentId).firstOrNull?.name ?? 'parent location'}'}',
+                ),
+              ),
             if (rooms.isEmpty) const Text('No cellar room yet.'),
-            for (final room in rooms) ListTile(contentPadding: EdgeInsets.zero, title: Text(room.name), subtitle: Text(room.code)),
+            for (final room in rooms)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(room.name),
+                subtitle: Text(
+                  room.code +
+                      (room.parentId == null
+                          ? ''
+                          : ' · under ${snapshot.rooms.where((parent) => parent.id == room.parentId).firstOrNull?.name ?? 'parent location'}'),
+                ),
+              ),
             if (canWrite) ...[
               const SizedBox(height: 8),
-              TextField(controller: _roomName, decoration: const InputDecoration(labelText: 'Room name')),
+              TextField(
+                controller: _roomName,
+                decoration: const InputDecoration(labelText: 'Room name'),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: _roomCode, decoration: const InputDecoration(labelText: 'Room code')),
+              TextField(
+                controller: _roomCode,
+                decoration: const InputDecoration(labelText: 'Room code'),
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: _busy
                     ? null
-                    : () => _run(() => ref.read(cellarControllerProvider.notifier).createRoom(
-                          name: _roomName.text.trim(),
-                          code: _roomCode.text.trim(),
-                        )),
+                    : () => _run(
+                        () => ref
+                            .read(cellarControllerProvider.notifier)
+                            .createRoom(
+                              name: _roomName.text.trim(),
+                              code: _roomCode.text.trim(),
+                            ),
+                      ),
                 child: const Text('Add room'),
               ),
               const SizedBox(height: 24),
-              Text('Place a rack', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Place a rack',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               if (rooms.isEmpty)
                 const Text('Add a room before placing a rack.')
               else if (snapshot.templates.isEmpty)
@@ -133,7 +190,10 @@ class _CellarPageState extends ConsumerState<CellarPage> {
                   decoration: const InputDecoration(labelText: 'Room'),
                   items: [
                     for (final room in rooms)
-                      DropdownMenuItem(value: room.id, child: Text('${room.code} · ${room.name}')),
+                      DropdownMenuItem(
+                        value: room.id,
+                        child: Text('${room.code} · ${room.name}'),
+                      ),
                   ],
                   onChanged: (value) => setState(() => _roomId = value),
                 ),
@@ -145,25 +205,37 @@ class _CellarPageState extends ConsumerState<CellarPage> {
                     for (final template in snapshot.templates)
                       DropdownMenuItem(
                         value: template.key,
-                        child: Text('${template.label} · ${template.rows}x${template.columns}'),
+                        child: Text(
+                          '${template.label} · ${template.rows}x${template.columns}',
+                        ),
                       ),
                   ],
                   onChanged: (value) => setState(() => _templateKey = value),
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: _unitName, decoration: const InputDecoration(labelText: 'Rack name')),
+                TextField(
+                  controller: _unitName,
+                  decoration: const InputDecoration(labelText: 'Rack name'),
+                ),
                 const SizedBox(height: 12),
-                TextField(controller: _unitCode, decoration: const InputDecoration(labelText: 'Rack code')),
+                TextField(
+                  controller: _unitCode,
+                  decoration: const InputDecoration(labelText: 'Rack code'),
+                ),
                 const SizedBox(height: 12),
                 FilledButton(
                   onPressed: _busy || roomId == null || templateKey == null
                       ? null
-                      : () => _run(() => ref.read(cellarControllerProvider.notifier).placeUnit(
-                            locationId: roomId,
-                            templateKey: templateKey,
-                            name: _unitName.text.trim(),
-                            code: _unitCode.text.trim(),
-                          )),
+                      : () => _run(
+                          () => ref
+                              .read(cellarControllerProvider.notifier)
+                              .placeUnit(
+                                locationId: roomId,
+                                templateKey: templateKey,
+                                name: _unitName.text.trim(),
+                                code: _unitCode.text.trim(),
+                              ),
+                        ),
                   child: const Text('Place rack'),
                 ),
               ],
@@ -171,7 +243,9 @@ class _CellarPageState extends ConsumerState<CellarPage> {
             const SizedBox(height: 24),
             Text('Mapped slots', style: Theme.of(context).textTheme.titleLarge),
             if (snapshot.slots.isEmpty)
-              const Text('Placing a rack creates addressable slots. Those slots are not deleted when stock is in them.')
+              const Text(
+                'Placing a rack creates addressable slots. Those slots are not deleted when stock is in them.',
+              )
             else
               for (final unit in snapshot.units) ...[
                 const SizedBox(height: 8),
@@ -180,8 +254,14 @@ class _CellarPageState extends ConsumerState<CellarPage> {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final slot in snapshot.slots.where((item) => item.unitId == unit.id))
-                      Chip(label: Text('${slot.locationCode}  ${slot.onHand}/${slot.capacityBottles}')),
+                    for (final slot in snapshot.slots.where(
+                      (item) => item.unitId == unit.id,
+                    ))
+                      Chip(
+                        label: Text(
+                          '${slot.locationCode}  ${slot.onHand}/${slot.capacityBottles}',
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -236,10 +316,13 @@ class _WineImportPageState extends ConsumerState<WineImportPage> {
       children: [
         Text('Import wines', style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 8),
-        const Text('SKU is the idempotent key. A second import updates the profile and does not change on-hand quantity.'),
+        const Text(
+          'SKU is the idempotent key. A second import updates the profile and does not change on-hand quantity.',
+        ),
         const SizedBox(height: 12),
         if (_error != null) StatusBanner(message: _error!),
-        if (_message != null) StatusBanner(message: _message!, tone: BannerTone.success),
+        if (_message != null)
+          StatusBanner(message: _message!, tone: BannerTone.success),
         TextField(
           controller: _csv,
           minLines: 8,
@@ -252,7 +335,9 @@ class _WineImportPageState extends ConsumerState<WineImportPage> {
           children: [
             OutlinedButton(
               onPressed: () async {
-                final sample = await rootBundle.loadString('assets/opening_club_wines.csv');
+                final sample = await rootBundle.loadString(
+                  'assets/opening_club_wines.csv',
+                );
                 setState(() {
                   _csv.text = sample;
                   _preview = parseWineCsv(sample);
@@ -261,14 +346,17 @@ class _WineImportPageState extends ConsumerState<WineImportPage> {
               child: const Text('Load opening sample'),
             ),
             OutlinedButton(
-              onPressed: () => setState(() => _preview = parseWineCsv(_csv.text)),
+              onPressed: () =>
+                  setState(() => _preview = parseWineCsv(_csv.text)),
               child: const Text('Preview'),
             ),
           ],
         ),
         if (_preview != null) ...[
           const SizedBox(height: 16),
-          Text('${_preview!.validRows.length} ready, ${_preview!.invalidRows.length} rejected'),
+          Text(
+            '${_preview!.validRows.length} ready, ${_preview!.invalidRows.length} rejected',
+          ),
           for (final row in _preview!.rows)
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -285,12 +373,15 @@ class _WineImportPageState extends ConsumerState<WineImportPage> {
                       _message = null;
                     });
                     try {
-                      final result = await ref.read(cellarControllerProvider.notifier).importWines(
-                        _preview!.validRows,
-                      );
+                      final result = await ref
+                          .read(cellarControllerProvider.notifier)
+                          .importWines(_preview!.validRows);
                       setState(() {
-                        _message = 'Imported ${result.imported}, updated ${result.updated}.';
-                        _error = result.errors.isEmpty ? null : result.errors.join('\n');
+                        _message =
+                            'Imported ${result.imported}, updated ${result.updated}.';
+                        _error = result.errors.isEmpty
+                            ? null
+                            : result.errors.join('\n');
                       });
                     } on AppFailure catch (failure) {
                       setState(() => _error = failure.message);
@@ -307,12 +398,16 @@ class _WineImportPageState extends ConsumerState<WineImportPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Catalog', style: Theme.of(context).textTheme.titleLarge),
-              if (snapshot.wines.isEmpty) const Text('No wines yet.'),
+              if (snapshot.wines.isEmpty) const Text('No inventory items yet.'),
               for (final wine in snapshot.wines)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   title: Text(wine.label),
-                  subtitle: Text('${wine.sku} · ${wine.wineType} · ${wine.bottleMl} ml'),
+                  subtitle: Text(
+                    wine.catalogName == null
+                        ? '${wine.sku} · ${wine.wineType} · ${wine.bottleMl} ml'
+                        : wine.sku,
+                  ),
                 ),
             ],
           ),
@@ -363,7 +458,9 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
     return cellar.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (error, _) => _Retry(
-        message: error is AppFailure ? error.message : 'Receiving could not be loaded.',
+        message: error is AppFailure
+            ? error.message
+            : 'Receiving could not be loaded.',
         onRetry: () => ref.read(cellarControllerProvider.notifier).refresh(),
       ),
       data: (snapshot) {
@@ -389,10 +486,18 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
         return ListView(
           padding: const EdgeInsets.all(24),
           children: [
-            Text('Receiving', style: Theme.of(context).textTheme.headlineMedium),
+            Text(
+              'Receiving',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
             const SizedBox(height: 8),
-            const Text('A receipt lands in staging. Put-away is a separate movement into a mapped slot.'),
-            if (_error != null) ...[const SizedBox(height: 12), StatusBanner(message: _error!)],
+            const Text(
+              'A receipt lands in staging. Put-away is a separate movement into a mapped slot.',
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              StatusBanner(message: _error!),
+            ],
             if (_message != null) ...[
               const SizedBox(height: 12),
               StatusBanner(message: _message!, tone: BannerTone.success),
@@ -400,14 +505,19 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
             if (canPurchase) ...[
               const SizedBox(height: 16),
               Text('Vendor', style: Theme.of(context).textTheme.titleLarge),
-              TextField(controller: _vendorName, decoration: const InputDecoration(labelText: 'Vendor name')),
+              TextField(
+                controller: _vendorName,
+                decoration: const InputDecoration(labelText: 'Vendor name'),
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: _busy
                     ? null
-                    : () => _run(() => ref.read(cellarControllerProvider.notifier).createVendor(
-                          name: _vendorName.text.trim(),
-                        )),
+                    : () => _run(
+                        () => ref
+                            .read(cellarControllerProvider.notifier)
+                            .createVendor(name: _vendorName.text.trim()),
+                      ),
                 child: const Text('Add vendor'),
               ),
             ],
@@ -415,13 +525,19 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
               for (final vendor in snapshot.vendors) Text(vendor.name),
             if (canReceive && snapshot.vendors.isNotEmpty) ...[
               const SizedBox(height: 24),
-              Text('Receive to staging', style: Theme.of(context).textTheme.titleLarge),
+              Text(
+                'Receive to staging',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               DropdownButtonFormField<String>(
                 initialValue: vendorId,
                 decoration: const InputDecoration(labelText: 'Vendor'),
                 items: [
                   for (final vendor in snapshot.vendors)
-                    DropdownMenuItem(value: vendor.id, child: Text(vendor.name)),
+                    DropdownMenuItem(
+                      value: vendor.id,
+                      child: Text(vendor.name),
+                    ),
                 ],
                 onChanged: (value) => setState(() => _vendorId = value),
               ),
@@ -431,61 +547,83 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
                 decoration: const InputDecoration(labelText: 'Wine'),
                 items: [
                   for (final wine in snapshot.wines)
-                    DropdownMenuItem(value: wine.itemId, child: Text(wine.label)),
+                    DropdownMenuItem(
+                      value: wine.itemId,
+                      child: Text(wine.label),
+                    ),
                 ],
                 onChanged: (value) => setState(() => _itemId = value),
               ),
               const SizedBox(height: 12),
-              TextField(controller: _quantity, decoration: const InputDecoration(labelText: 'Bottles')),
+              TextField(
+                controller: _quantity,
+                decoration: const InputDecoration(labelText: 'Bottles'),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: _cost, decoration: const InputDecoration(labelText: 'Unit cost')),
+              TextField(
+                controller: _cost,
+                decoration: const InputDecoration(labelText: 'Unit cost'),
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: _busy || vendorId == null
                     ? null
                     : () => _run(() async {
-                          DecimalAmount.parse(_cost.text);
-                          DecimalAmount.parse(_quantity.text, scale: 3);
-                          await ref.read(cellarControllerProvider.notifier).receive(
-                            vendorId: vendorId,
-                            itemId: itemId,
-                            quantity: _quantity.text.trim(),
-                            unitCost: DecimalAmount.parse(_cost.text).toString(),
-                          );
-                          setState(() => _message = 'Received into staging.');
-                        }),
+                        DecimalAmount.parse(_cost.text);
+                        DecimalAmount.parse(_quantity.text, scale: 3);
+                        await ref
+                            .read(cellarControllerProvider.notifier)
+                            .receive(
+                              vendorId: vendorId,
+                              itemId: itemId,
+                              quantity: _quantity.text.trim(),
+                              unitCost: DecimalAmount.parse(_cost.text)
+                                  .toString(),
+                            );
+                        setState(() => _message = 'Received into staging.');
+                      }),
                 child: const Text('Receive'),
               ),
             ],
             const SizedBox(height: 24),
             Text('Staging', style: Theme.of(context).textTheme.titleLarge),
-            if (snapshot.staged.isEmpty) const Text('Nothing is waiting to be put away.'),
+            if (snapshot.staged.isEmpty)
+              const Text('Nothing is waiting to be put away.'),
             for (final lot in snapshot.staged)
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(lot.label),
                 subtitle: Text('${lot.quantity} in staging'),
               ),
-            if (canMove && snapshot.staged.isNotEmpty && snapshot.slots.isNotEmpty) ...[
+            if (canMove &&
+                snapshot.staged.isNotEmpty &&
+                snapshot.slots.isNotEmpty) ...[
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: lotId,
                 decoration: const InputDecoration(labelText: 'Staged lot'),
                 items: [
                   for (final lot in snapshot.staged)
-                    DropdownMenuItem(value: lot.lotId, child: Text('${lot.label} · ${lot.quantity}')),
+                    DropdownMenuItem(
+                      value: lot.lotId,
+                      child: Text('${lot.label} · ${lot.quantity}'),
+                    ),
                 ],
                 onChanged: (value) => setState(() => _lotId = value),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 initialValue: slotId,
-                decoration: const InputDecoration(labelText: 'Destination slot'),
+                decoration: const InputDecoration(
+                  labelText: 'Destination slot',
+                ),
                 items: [
                   for (final slot in snapshot.slots)
                     DropdownMenuItem(
                       value: slot.id,
-                      child: Text('${slot.locationCode} · ${slot.onHand}/${slot.capacityBottles}'),
+                      child: Text(
+                        '${slot.locationCode} · ${slot.onHand}/${slot.capacityBottles}',
+                      ),
                     ),
                 ],
                 onChanged: (value) => setState(() => _slotId = value),
@@ -500,28 +638,44 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
                 onPressed: _busy || lotId == null || slotId == null
                     ? null
                     : () => _run(() async {
-                          final lot = snapshot.staged.firstWhere((item) => item.lotId == lotId);
-                          final slot = snapshot.slots.firstWhere((item) => item.id == slotId);
-                          final error = putAwayError(
-                            staged: DecimalAmount.parse(lot.quantity, scale: 3),
-                            requested: DecimalAmount.parse(_putAwayQuantity.text.trim(), scale: 3),
-                            slotOnHand: DecimalAmount.parse(slot.onHand, scale: 3),
-                            slotCapacity: slot.capacityBottles,
-                          );
-                          if (error != null) throw ValidationFailure(error);
-                          await ref.read(cellarControllerProvider.notifier).putAway(
-                            lotId: lotId,
-                            slotId: slotId,
-                            quantity: _putAwayQuantity.text.trim(),
-                          );
-                          setState(() => _message = 'Put away ${slot.locationCode}.');
-                        }),
+                        final lot = snapshot.staged.firstWhere(
+                          (item) => item.lotId == lotId,
+                        );
+                        final slot = snapshot.slots.firstWhere(
+                          (item) => item.id == slotId,
+                        );
+                        final error = putAwayError(
+                          staged: DecimalAmount.parse(lot.quantity, scale: 3),
+                          requested: DecimalAmount.parse(
+                            _putAwayQuantity.text.trim(),
+                            scale: 3,
+                          ),
+                          slotOnHand: DecimalAmount.parse(
+                            slot.onHand,
+                            scale: 3,
+                          ),
+                          slotCapacity: slot.capacityBottles,
+                        );
+                        if (error != null) throw ValidationFailure(error);
+                        await ref
+                            .read(cellarControllerProvider.notifier)
+                            .putAway(
+                              lotId: lotId,
+                              slotId: slotId,
+                              quantity: _putAwayQuantity.text.trim(),
+                            );
+                        setState(
+                          () => _message = 'Put away ${slot.locationCode}.',
+                        );
+                      }),
                 child: const Text('Put away'),
               ),
             ] else if (snapshot.staged.isNotEmpty && snapshot.slots.isEmpty)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
-                child: Text('Place a rack before put-away. Staging stock stays where it is.'),
+                child: Text(
+                  'Place a rack before put-away. Staging stock stays where it is.',
+                ),
               ),
           ],
         );
@@ -539,7 +693,9 @@ class _ReceivePageState extends ConsumerState<ReceivePage> {
     } on AppFailure catch (failure) {
       setState(() => _error = failure.message);
     } on FormatException {
-      setState(() => _error = 'Use a decimal cost and a whole-bottle quantity.');
+      setState(
+        () => _error = 'Use a decimal cost and a whole-bottle quantity.',
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -550,13 +706,19 @@ Widget? _gate(WidgetRef ref, String permission) {
   final selection = ref.watch(workspaceControllerProvider);
   final session = ref.watch(tenantControllerProvider).value;
   if (selection.venueId == null) {
-    return const _Empty(message: 'Create a venue before opening the cellar.', action: '', onAction: null);
+    return const _Empty(
+      message: 'Create a venue before opening the cellar.',
+      action: '',
+      onAction: null,
+    );
   }
   if (session == null || selection.organizationId == null) {
     return const Center(child: CircularProgressIndicator());
   }
   if (!session.can(selection.organizationId!, permission)) {
-    return const Center(child: Text('You do not have permission to open the cellar.'));
+    return const Center(
+      child: Text('You do not have permission to open the cellar.'),
+    );
   }
   return null;
 }
@@ -593,7 +755,11 @@ class _Retry extends StatelessWidget {
 }
 
 class _Empty extends StatelessWidget {
-  const _Empty({required this.message, required this.action, required this.onAction});
+  const _Empty({
+    required this.message,
+    required this.action,
+    required this.onAction,
+  });
 
   final String message;
   final String action;

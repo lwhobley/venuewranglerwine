@@ -14,6 +14,9 @@ class CreateVenueRequest {
     this.city,
     this.region,
     this.postalCode,
+    this.geofenceLatitude,
+    this.geofenceLongitude,
+    this.geofenceRadiusFt = 1000,
   });
 
   final String organizationId;
@@ -27,6 +30,8 @@ class CreateVenueRequest {
   final String? city;
   final String? region;
   final String? postalCode;
+  final double? geofenceLatitude, geofenceLongitude;
+  final int geofenceRadiusFt;
 }
 
 abstract interface class TenantRepository {
@@ -53,7 +58,13 @@ abstract interface class TenantRepository {
     String? message,
   });
   Future<void> reviewJoin({required String requestId, required bool approve});
-  Future<void> assignRole({required String membershipId, required String roleKey});
+  Future<void> assignRole({
+    required String membershipId,
+    required String roleKey,
+  });
   Future<String?> venueJoinCode(String venueId);
-  Future<void> updateDisplayName({required String userId, required String name});
+  Future<void> updateDisplayName({
+    required String userId,
+    required String name,
+  });
 }
