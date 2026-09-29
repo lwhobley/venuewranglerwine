@@ -4,6 +4,8 @@
 <dict>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Your location verifies that clock-in and clock-out happen within your venue’s allowed boundary.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Your location verifies that clock-in and clock-out happen within your venue's allowed boundary. Location is checked only when you punch.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Choose photos of inventory documents and floor plans to import into your venue.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
