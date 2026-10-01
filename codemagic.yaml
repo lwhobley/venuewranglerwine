@@ -62,12 +62,7 @@ workflows:
         script: |
           set -euo pipefail
           # An IPA built without --dart-define opens on the setup screen.
-          # Dart const strings are embedded in the AOT snapshot, so the host must appear.
-          host=$(python3 -c "import json,urllib.parse;print(urllib.parse.urlparse(json.load(open('build/codemagic/flutter-defines.json'))['SUPABASE_URL']).hostname)")
-          binary="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App"
-          test -f "$binary"
-          strings -a "$binary" | grep -qF "$host" || { echo "Supabase host missing from built app"; exit 1; }
-          echo "Supabase configuration present in build"
+          python3 tool/verify_ios_config.py
       - name: Verify app identity and signature
         script: |
           set -euo pipefail
