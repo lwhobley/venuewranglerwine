@@ -58,6 +58,16 @@ workflows:
             --build-number="$VW_IOS_BUILD_NUMBER" \
             --dart-define-from-file=build/codemagic/flutter-defines.json \
             --export-options-plist="$HOME/export_options.plist"
+      - name: Verify Supabase configuration is compiled in
+        script: |
+          set -euo pipefail
+          # An IPA built without --dart-define opens on the setup screen.
+          # Dart const strings are embedded in the AOT snapshot, so the host must appear.
+          host=$(python3 -c "import json,urllib.parse;print(urllib.parse.urlparse(json.load(open('build/codemagic/flutter-defines.json'))['SUPABASE_URL']).hostname)")
+          binary="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app/Frameworks/App.framework/App"
+          test -f "$binary"
+          strings -a "$binary" | grep -qF "$host" || { echo "Supabase host missing from built app"; exit 1; }
+          echo "Supabase configuration present in build"
       - name: Verify app identity and signature
         script: |
           set -euo pipefail

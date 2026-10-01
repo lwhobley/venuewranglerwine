@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -36,12 +37,16 @@ class SetupPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const AuthFrame(
+    return AuthFrame(
       title: 'Connect the workspace',
-      subtitle: 'Venue Wrangler talks to Supabase. It does not sign you in locally.',
-      child: SelectableText(
-        'flutter run -d chrome --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=your-anon-key',
-      ),
+      subtitle: kReleaseMode
+          ? 'This build is missing its workspace configuration. Install a newer build.'
+          : 'Venue Wrangler talks to Supabase. It does not sign you in locally.',
+      child: kReleaseMode
+          ? const SizedBox.shrink()
+          : const SelectableText(
+              'flutter run -d chrome --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=your-anon-key',
+            ),
     );
   }
 }

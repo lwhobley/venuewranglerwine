@@ -31,12 +31,20 @@ async function accessToken(account: ServiceAccount): Promise<string> {
   return data.access_token;
 }
 
+function safeEqual(given: string, expected: string) {
+  const a = new TextEncoder().encode(given);
+  const b = new TextEncoder().encode(expected);
+  let mismatch = a.length ^ b.length;
+  for (let i = 0; i < b.length; i++) mismatch |= (a[i] ?? 0) ^ b[i];
+  return mismatch === 0;
+}
+
 Deno.serve(async (request) => {
   const secret = Deno.env.get('WORKFORCE_PUSH_JOB_SECRET');
   if (request.method !== 'POST') return Response.json({ error: 'method_not_allowed' }, { status: 405 });
   // This endpoint is invoked by the scheduled worker, never by employee clients.
   const supplied = request.headers.get('Authorization') ?? '';
-  if (!secret || supplied !== `Bearer ${secret}`) return Response.json({ error: 'unauthorized' }, { status: 401 });
+  if (!secret || !safeEqual(supplied, `Bearer ${secret}`)) return Response.json({ error: 'unauthorized' }, { status: 401 });
   const client = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
   const raw = Deno.env.get('FCM_SERVICE_ACCOUNT_JSON');
   const { data: pending, error } = await client.rpc('workforce_outbox_claim');
@@ -47,7 +55,7 @@ Deno.serve(async (request) => {
   try {
     if (raw) {
       account = JSON.parse(raw);
-      if (account?.project_id !== 'venuewranglerwine') throw new Error('fcm_project_mismatch');
+      if (account?.project_id !== (Deno.env.get('FCM_PROJECT_ID') ?? 'venuewranglerwine')) throw new Error('fcm_project_mismatch');
       token = await accessToken(account);
     }
   } catch {

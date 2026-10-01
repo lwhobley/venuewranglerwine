@@ -30,6 +30,15 @@ jobs:
       - run: psql -v ON_ERROR_STOP=1 postgresql://postgres:postgres@127.0.0.1:54322/postgres -f supabase/tests/floor_plan_test.sql
       - if: always()
         run: supabase stop --no-backup
+  edge-functions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/pos-gateway/index.ts supabase/functions/workforce-push/index.ts
+      - run: deno test --no-check supabase/functions/pos-gateway/
   android:
     runs-on: ubuntu-latest
     steps:

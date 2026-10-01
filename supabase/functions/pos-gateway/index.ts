@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isShopifyDomain, safeOutboundUrl } from './outbound.ts';
 import { squareSales, squareSearchBody } from './square.ts';
 
 const known = new Set([
@@ -18,7 +19,14 @@ const known = new Set([
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
   const raw = await req.text();
-  const body = JSON.parse(raw);
+  let body: Record<string, unknown>;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('shape');
+    body = parsed;
+  } catch (_error) {
+    return json({ error: 'invalid_body' }, 400);
+  }
   const action = String(body.action ?? '');
   const admin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -64,6 +72,8 @@ async function connect(admin: SupabaseClient<any>, user: SupabaseClient<any>, bo
     webhook_secret: str(body.webhookSecret),
     sandbox: body.sandbox === true,
   };
+  if (secret.webhook_url && !safeOutboundUrl(secret.webhook_url)) return json({ error: 'invalid_webhook_url' }, 400);
+  if (providerKey === 'shopify' && !isShopifyDomain(secret.shop_domain)) return json({ error: 'invalid_shop_domain' }, 400);
   const handshake = await handshakeCall(providerKey, secret);
   if (!handshake.ok) return json({ error: 'handshake_required', detail: handshake.detail }, 400);
 
@@ -260,6 +270,7 @@ async function handshakeCall(provider: string, secret: Secret) {
     return { ok: response.ok, detail: response.status };
   }
   if (provider === 'shopify') {
+    if (!isShopifyDomain(secret.shop_domain)) return { ok: false, detail: 0 };
     const response = await fetch(`https://${secret.shop_domain}/admin/api/2025-01/shop.json`, {
       headers: { 'x-shopify-access-token': secret.access_token ?? '' },
     });
@@ -267,8 +278,11 @@ async function handshakeCall(provider: string, secret: Secret) {
   }
   if (!secret.webhook_url || !secret.webhook_secret) return { ok: false, detail: 0 };
   const raw = JSON.stringify({ event: 'handshake' });
-  const response = await fetch(secret.webhook_url, {
+  const target = safeOutboundUrl(secret.webhook_url);
+  if (!target) return { ok: false, detail: 0 };
+  const response = await fetch(target, {
     method: 'POST',
+    redirect: 'manual',
     headers: {
       'content-type': 'application/json',
       'x-vw-signature': await sign(secret.webhook_secret, raw),
@@ -309,11 +323,12 @@ async function pullSquare(secret: Secret, locationId: string) {
 }
 
 async function pushAvailability(provider: string, secret: Secret, payload: Record<string, unknown>) {
-  if (!secret.webhook_url) return { ok: false };
+  const target = safeOutboundUrl(secret.webhook_url);
+  if (!target) return { ok: false };
   const raw = JSON.stringify(payload);
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (secret.webhook_secret) headers['x-vw-signature'] = await sign(secret.webhook_secret, raw);
-  const response = await fetch(secret.webhook_url, { method: 'POST', headers, body: raw });
+  const response = await fetch(target, { method: 'POST', redirect: 'manual', headers, body: raw });
   return { ok: response.ok };
 }
 

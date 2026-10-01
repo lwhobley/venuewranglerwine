@@ -1,8 +1,10 @@
 # Venue Wrangler
 
-Operations command for wine-led hospitality. Phase 1 is authentication and tenant roles. Phase 2 is the opening cellar. Phase 3 is offline counts. Phase 4 transfers reserve stock. Phase 5 reserves a release. Phases 1–9 are implemented: tenant, cellar, counts, movement, allocation, service, host stand, people, and business.
+Operations command for wine-led hospitality, built with Flutter and Supabase.
 
-Architecture: `docs/architecture/`. Phase note: `docs/phases/phase-1.md`.
+Modules: tenant and roles, opening cellar, offline counts, stock movement, allocations, service, host stand, people, business reporting, workforce scheduling and attendance (with clock-in geofencing), interactive floor plan, data import, and a POS gateway (Square pull; webhook and push for other providers).
+
+Architecture: `docs/architecture/`. Phase notes: `docs/phases/`. iOS release: `docs/codemagic-ios.md`.
 
 ```
 supabase start
@@ -12,3 +14,7 @@ flutter test
 ```
 
 Without the Supabase defines, the app stays on the configuration screen. It does not invent a session.
+
+Release builds must be compiled with `SUPABASE_URL` and `SUPABASE_ANON_KEY`; the Codemagic workflow fails if the Supabase host is not present in the built app.
+
+Edge functions: `deno test --no-check supabase/functions/pos-gateway/`. Optional `FCM_PROJECT_ID` overrides the Firebase project checked by `workforce-push`.
